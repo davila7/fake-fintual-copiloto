@@ -111,6 +111,7 @@ def run_conversation(prompt):
     # Make your request and handle the response
     response = llama.run(api_request_json)
     message = response.json()
+    #st.write(message)
     has_function_callings = False
     # Step 2, check if the model wants to call a function
     if message['choices'][0]['message']['function_call']:
@@ -124,6 +125,7 @@ def run_conversation(prompt):
             #st.write(arguments)
     dates = []
     prices = []
+    fondo = ''
     if has_function_callings:
         # llamo a fintual y pinto el gráfico
         function_response = api_fintual(
