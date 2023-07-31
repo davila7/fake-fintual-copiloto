@@ -142,7 +142,7 @@ image = Image.open('fake-fintual-copiloto.png')
 st.image(image, width=50)
 st.title("Fake Fintual Copiloto 🤖")
 st.write("Preguntame cualquier cosa sobre los fondos de fintual... pero una advertencia ⚠️ Soy la versión Fake!")
-st.markdown("Creado por [Daniel San]('https://www.linkedin.com/in/daniel-avila-arias/') con [Judini]('https://judini.ai/')")
+st.markdown("Creado por [Daniel San]('https://www.linkedin.com/in/daniel-avila-arias/') con [Judini]('https://judini.ai/')", unsafe_allow_html=True)
 st.markdown('---')
 # Initialize chat history
 if "messages" not in st.session_state:
