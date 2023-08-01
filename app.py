@@ -13,6 +13,7 @@ from typing import List
 import matplotlib.pyplot as plt
 from langchain.llms import OpenAI
 from langchain.prompts import PromptTemplate
+import time
 #Judini
 api_key= os.getenv("JUDINI_API_KEY")
 agent_id= os.getenv("JUDINI_AGENT_ID")
@@ -72,7 +73,7 @@ def api_fintual(fondo, from_date, to_date):
     return dates, prices
 
 # Define your API request
-def run_conversation(prompt):
+def run_llama_api(prompt):
     # Initialize the llamaapi with your api_token
     llama = LlamaAPI(os.getenv("LLAMA_API_API_KEY"))
     function_calling_json = [
@@ -123,19 +124,15 @@ def run_conversation(prompt):
             model = ChoiceList(**message)
             arguments = model.choices[0].message.function_call.arguments
             #st.write(arguments)
-    dates = []
-    prices = []
+    date_to = ''
+    date_from = ''
     fondo = ''
     if has_function_callings:
-        # llamo a fintual y pinto el gráfico
-        function_response = api_fintual(
-            arguments.fondo_name, arguments.date_from, arguments.date_to
-        )
         #obtener el dato dates and prices de la variable function_response
-        dates = function_response[0]
-        prices = function_response[1]
+        date_to = arguments.date_to
+        date_from = arguments.date_from
         fondo = arguments.fondo_name
-    return dates, prices, fondo
+    return date_to, date_from, fondo
         
 
 st.set_page_config(layout="centered")  
@@ -192,10 +189,24 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
         prompt_data_fintual = ''
         message_placeholder = st.empty()
         if response == 'True':
-            date_prices = run_conversation(prompt=prompt)
-            dates = date_prices[0]
-            prices = date_prices[1]
-            fondo = date_prices[2]
+            with st.spinner('Iré a buscar los datos a fintual...'):
+                data_arguments = run_llama_api(prompt=prompt)
+            date_to = data_arguments[0]
+            date_from = data_arguments[1]
+            fondo = data_arguments[2]
+            
+            # llamo a fintual y pinto el gráfico
+            # pregunto si debo llamar a la api de fintual
+
+            date_price = api_fintual(
+                fondo, date_from, date_to
+            )
+            # parar la ejecución del código por 5 segundos
+            with st.spinner('Datos obtenidos, ahora los graficaré...'):
+                time.sleep(5)
+            
+            dates = date_price[0]
+            prices = date_price[1]
 
             plt.figure(figsize=(10,5))
             plt.bar(dates, prices, color = 'blue')
