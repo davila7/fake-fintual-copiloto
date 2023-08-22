@@ -14,11 +14,16 @@ import matplotlib.pyplot as plt
 from langchain.llms import OpenAI
 from langchain.prompts import PromptTemplate
 import time
+import pandas as pd
+from pandasai import PandasAI
+from judini.agent import Agent
+
 #Judini
-api_key= os.getenv("JUDINI_API_KEY")
-agent_id= os.getenv("JUDINI_AGENT_ID")
-url = 'https://playground.judini.ai/api/v1/agent/'+agent_id
-headers = {"Content-Type": "application/json; charset=utf-8", "Authorization": "Bearer "+api_key}
+judini_api_key= os.getenv("JUDINI_API_KEY")
+agent_unificador_id= "c407355e-13f6-4c9a-b2fe-c79eb5f0010a"
+ # os.getenv("JUDINI_AGENT_ID")
+url = 'https://playground.judini.ai/api/v1/agent/'+agent_unificador_id
+headers = {"Content-Type": "application/json; charset=utf-8", "Authorization": "Bearer "+judini_api_key}
 
 def get_or_create_eventloop():
     try:
@@ -72,69 +77,6 @@ def api_fintual(fondo, from_date, to_date):
     # return an array
     return dates, prices
 
-# Define your API request
-def run_llama_api(prompt):
-    # Initialize the llamaapi with your api_token
-    llama = LlamaAPI(os.getenv("LLAMA_API_API_KEY"))
-    function_calling_json = [
-            {
-                "name": "get_fondo_data",
-                "description": "útil cuando un usuario quiere preguntar sobre fondos de desde un rango específico",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "fondo_name": {
-                            "type": "string",
-                            "description": "nombre del fondo",
-                        },
-                        "date_from": {
-                            "type": "string",
-                            "description":"Fecha desde cuando se quiere consultar"
-                        },
-                        "date_to": {
-                            "type": "string",
-                            "description":"Fecha hasta cuando se quiere consultar"
-                        },
-                    },
-                },
-            }
-        ]
-
-    api_request_json = {
-    "messages": [
-        {"role": "user", "content": prompt},
-    ],
-    "functions": function_calling_json,
-    "stream": False,
-    "function_call": "get_fondo_data"
-    }
-
-    # Make your request and handle the response
-    response = llama.run(api_request_json)
-    message = response.json()
-    #st.write(message)
-    has_function_callings = False
-    # Step 2, check if the model wants to call a function
-    if message['choices'][0]['message']['function_call']:
-        function_name = message['choices'][0]['message']['function_call']["name"]
-        #st.write(function_name)
-        if(function_name == 'get_fondo_data'):
-            has_function_callings = True
-            # Access the arguments
-            model = ChoiceList(**message)
-            arguments = model.choices[0].message.function_call.arguments
-            #st.write(arguments)
-    date_to = ''
-    date_from = ''
-    fondo = ''
-    if has_function_callings:
-        #obtener el dato dates and prices de la variable function_response
-        date_to = arguments.date_to
-        date_from = arguments.date_from
-        fondo = arguments.fondo_name
-    return date_to, date_from, fondo
-        
-
 st.set_page_config(layout="centered")  
 
 image = Image.open('fake-fintual-copiloto.png')
@@ -152,43 +94,22 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# Accept user input
-if prompt := st.chat_input("En que te puedo ayudar?"):
-    llm = OpenAI(temperature=0)
-    prompt_template = PromptTemplate(
-        input_variables=["prompt"],
-        template='''
-        Fondos disponibles:
-        Very Conservative Streep
-        Risky Norris
-        Moderate Pitt
-        Conservative Clooney
 
-        Q:dime como va mi fondo 1?
-        A:False
-        Q:Cómo va el fondo Risky Norris en Julio de este año?
-        A:True
-        Q:¿Muestrame el resultado del fondo Moderate Pitt?
-        A:True
-        Q:{prompt}
-        A:''',
-    )
-    from langchain.chains import LLMChain
-    chain = LLMChain(llm=llm, prompt=prompt_template)
-    response = chain.run(prompt)
+if prompt := st.chat_input("En que te puedo ayudar?"):
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    array_response = []
     
     full_response = ""
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
-    # Display user message in chat message container
-    with st.chat_message("user"):
-        st.markdown(prompt)
 
     # Display assistant response in chat message container
     with st.chat_message("assistant"):
         prompt_data_fintual = ''
         message_placeholder = st.empty()
-        if response == 'True':
+        if False:
             with st.spinner('Iré a buscar los datos a fintual...'):
                 data_arguments = run_llama_api(prompt=prompt)
             date_to = data_arguments[0]
@@ -231,34 +152,58 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
             )
             prompt = prompt_data_fintual.format(prompt=prompt, fondo=fondo, dates=dates, prices=prices)
         
+        #function callings json
+        function_calling_json = [
+            {
+                "name": "get_fondo_data",
+                "description": "útil cuando un usuario quiere preguntar sobre fondos de desde un rango específico",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "fondo_name": {
+                            "type": "string",
+                            "description": "nombre del fondo",
+                        },
+                        "date_from": {
+                            "type": "string",
+                            "description":"Fecha desde cuando se quiere consultar"
+                        },
+                        "date_to": {
+                            "type": "string",
+                            "description":"Fecha hasta cuando se quiere consultar"
+                        },
+                    },
+                },
+            }
+        ]
+
         data = {
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "functions": []
+            "messages": st.session_state.messages,
+            "functions": function_calling_json
         }
+        st.write(data)
         response = requests.post(url, headers=headers, json=data, stream=True)
+        # obtiene la respuesta del servidor, lo guarda en response y lo muestra completamente
+        st.write(response.content)
+        
         raw_data = ''
         tokens = ''
-        for chunk in response.iter_content(chunk_size=1024):
-            if chunk:
-                raw_data = chunk.decode('utf-8').replace("data: ", '')
-                if raw_data != "":
-                    lines = raw_data.strip().splitlines()
-                    for line in lines:
-                        line = line.strip()
-                        if line and line != "[DONE]":
-                            try:
-                                json_object = json.loads(line) 
-                                result = json_object['data']
-                                full_response += result
-                                time.sleep(0.05)
-                                # Add a blinking cursor to simulate typing
-                                message_placeholder.markdown(full_response + "▌")
-                            except json.JSONDecodeError:
-                                print(f'Error al decodificar el objeto JSON en la línea: {line}')
-        message_placeholder.markdown(full_response)
+        # for chunk in response.iter_content(chunk_size=1024):
+        #     if chunk:
+        #         raw_data = chunk.decode('utf-8').replace("data: ", '')
+        #         if raw_data != "":
+        #             lines = raw_data.strip().splitlines()
+        #             for line in lines:
+        #                 line = line.strip()
+        #                 if line and line != "[DONE]":
+        #                     try:
+        #                         json_object = json.loads(line) 
+        #                         result = json_object['data']
+        #                         full_response += result
+        #                         time.sleep(0.05)
+        #                         # Add a blinking cursor to simulate typing
+        #                         message_placeholder.markdown(full_response + "▌")
+        #                     except json.JSONDecodeError:
+        #                         print(f'Error al decodificar el objeto JSON en la línea: {line}')
+        # message_placeholder.markdown(full_response)
     st.session_state.messages.append({"role": "assistant", "content": full_response})

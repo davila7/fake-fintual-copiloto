@@ -6,3 +6,4 @@ llamaapi
 plotly
 openai
 matplotlib
+pandasai
