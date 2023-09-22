@@ -4,6 +4,6 @@ requests
 python-dotenv
 llamaapi
 plotly
-openai
 matplotlib
 pandasai
+judini==0.0.17

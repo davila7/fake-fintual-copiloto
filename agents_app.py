@@ -16,7 +16,7 @@ from langchain.prompts import PromptTemplate
 import time
 import pandas as pd
 from pandasai import PandasAI
-from judini.agent import Agent
+from judini.codegpt.agent import Agent
 
 #Judini
 judini_api_key= os.getenv("JUDINI_API_KEY")

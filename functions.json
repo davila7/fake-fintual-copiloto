@@ -1,0 +1,88 @@
+[
+    {
+        "name": "general_agent",
+        "description": "útil cuando quieres saber información general sobre los fondos de fintual, por ejemplo: que fondos tienen?",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "Pregunta en el formato correcto para que un LLM la pueda entender"
+                }
+            },
+            "required": [
+                "question"
+            ]
+        }
+    },
+    {
+        "name": "risky_norris_rag_agent",
+        "description": "útil cuando quieres saber sobre el fondo Risky Norris de fintual",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "Pregunta en el formato correcto para que un LLM la pueda entender"
+                }
+            },
+            "required": [
+                "question"
+            ]
+        }
+    },
+    {
+        "name": "moderate_pitt_rag_agent",
+        "description": "útil cuando quieres saber sobre el fondo Moderate Pitt de fintual",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "Pregunta en el formato correcto para que un LLM la pueda entender"
+                }
+            },
+            "required": [
+                "question"
+            ]
+        }
+    },
+    {
+        "name": "conservative_clooney_rag_agent",
+        "description": "útil cuando quieres saber sobre el fondo Conservative Clooney de fintual",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "question": {
+                    "type": "string",
+                    "description": "Pregunta en el formato correcto para que un LLM la pueda entender"
+                }
+            },
+            "required": [
+                "question"
+            ]
+        }
+    },
+    {
+        "name": "fintual_api_agent",
+        "description": "útil cuando un usuario quiere preguntar sobre fondos de desde un rango específico",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "fondo_name": {
+                    "type": "string",
+                    "description": "nombre del fondo"
+                },
+                "date_from": {
+                    "type": "string",
+                    "description":"Fecha desde cuando se quiere consultar"
+                },
+                "date_to": {
+                    "type": "string",
+                    "description":"Fecha hasta cuando se quiere consultar"
+                }
+            },
+            "required": [ "fondo_name", "date_from", "date_to" ]
+        }
+    }
+]
