@@ -129,35 +129,45 @@ async def run_rag_agent(type_agent):
         role = 'user'
 
 
+    # Cuando está activa, duplica la respuesta del bot
+    # st.session_state.messages.append({"role": role, "content": prompt})
+
     # st.write(data)
     # st.write(headers)
     # st.write(url+agent_id)
 
-    # st.session_state.agents.append(f"🤖 {type_agent}")
+    # add agent to sidebar list
+
+    st.session_state.agents.append(f"🤖 {type_agent}")
 
     data = { "messages": st.session_state.messages }
     response = requests.post(url+agent_id, headers=headers, json=data, stream=True)
 
-    raw_data = ''
-    full_response=""
+    raw_data = ""
+    full_response = ""
+
+    # quité el nombre del agente del full_response porque lo envias en el mensaje y se duplica en la respuesta
 
     for chunk in response.iter_content(chunk_size=1024):
         if chunk:
-            raw_data = chunk.decode('utf-8').replace("data: ", '')
+            raw_data = chunk.decode('utf-8').replace("data: ", '').strip()
             if raw_data != "":
                 lines = raw_data.strip().splitlines()
                 for line in lines:
                     line = line.strip()
                     if line and line != "[DONE]":
                         try:
-                            json_object = json.loads(line) 
+                            json_object = json.loads(line)
                             result = json_object['data']
                             full_response += result
-                            # time.sleep(0.05)
+                            time.sleep(0.03)
                             # Add a blinking cursor to simulate typing
-                            message_placeholder.write(full_response + "▌")
+                            message_placeholder.write(f"{full_response} ▌")
                         except json.JSONDecodeError:
                             print(f'Error al decodificar el objeto JSON en la línea: {line}')
+            # add to the first space in full_response "hola"
+            # "**"+type_agent.replace("_", " ").capitalize()+"** dice: \r\r"
+            # full_response = "**"+type_agent.replace("_", " ").capitalize()+"** dice: \r\r"
 
     return full_response
 
@@ -187,29 +197,32 @@ def api_fintual(fondo, from_date, to_date):
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
+    with st.chat_message(message["role"], avatar='fake-fintual-copiloto.png' if message["role"] == "assistant" else None):
         st.write(message["content"])
-
 
 if prompt := st.chat_input("En que te puedo ayudar?"):
 
+    # with st.chat_message(name="Gus"):
     with st.chat_message("user"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.write(prompt)
 
     array_response = []
-    full_response = ""
+    # full_response = ""
 
     # Display assistant response in chat message container
 
-    with st.chat_message("assistant"):
+    with st.chat_message("assistant", avatar='fake-fintual-copiloto.png'):
+
         with st.status("Buscando al mejor agente para esta consulta...", expanded=True) as status:
+
             prompt_data_fintual = ''
             message_placeholder = st.empty()
 
-            is_function = False
+            message_placeholder.write("🤖 Pensando...")
+            # st.session_state.agents.append
 
-            # with st.spinner('Buscando al mejor agente para esta consulta...'):
+            is_function = False
 
             response = asyncio.run(run_function_agent(CODEGPT_AGENT_ORQUESTADOR, prompt))
 
@@ -268,11 +281,13 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
                             ''',
                     )
                     prompt = prompt_data_fintual.format(prompt=prompt, fondo=fondo_name, dates=dates, prices=prices)
-
+            
+            status.update(label="Preparando respuesta final", state="running", expanded=True)
             response_agent = asyncio.run(run_rag_agent('agente_general'))
+            status.update(label="Respuesta obtenida", state="complete", expanded=True)
+            
             st.session_state.messages.append({"role": "assistant", "content": response_agent})
 
-            status.update(label="Respuesta obtenida", state="complete", expanded=True)
 
         # # st.write(full_response)
         # print(full_response)
