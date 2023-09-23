@@ -93,7 +93,10 @@ class ChoiceList(BaseModel):
     choices: List[Choice]
 
 async def run_function_agent(agent_id, prompt):
-    st.session_state.agents.append("🤖 agente_orquestador")
+    st.session_state.agents.append({
+        "time": time.time(),
+        "agent": "agente_orquestador"
+    })
     agent_instance = Agent(api_key=CODEGPT_API_KEY,agent_id=agent_id )
     full_response = ""
     async for response in agent_instance.chat_completion(prompt, stream=False):
@@ -138,7 +141,10 @@ async def run_rag_agent(type_agent):
 
     # add agent to sidebar list
 
-    st.session_state.agents.append(f"🤖 {type_agent}")
+    st.session_state.agents.append({
+        "time": time.time(),
+        "agent": type_agent
+    })
 
     data = { "messages": st.session_state.messages }
     response = requests.post(url+agent_id, headers=headers, json=data, stream=True)
@@ -294,8 +300,22 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
 
         # status.update(label="Download complete!", state="complete", expanded=False)
 
+agent_story=""
 for agent in st.session_state.agents:
-    st.sidebar.write(agent)
+    # # show hour of agent
+    # st.session_state.agents.append({
+    #     "time": time.time(),
+    #     "agent": type_agent
+    # })
+    # order agents by time
+    st.session_state.agents.sort(key=lambda x: x['time'], reverse=True)
+    agent_story += f"{int((time.time() - agent['time']) / 60)} min ago\t{agent['agent'].replace('_', ' ').capitalize()}\n"
+
+
+# st.sidebar.write("🤖 " + agent['agent'].replace("_", " ") + f" - {int((time.time() - agent['time']) / 60)} min ago")
+
+st.sidebar.code(agent_story, language="markdown", line_numbers=False)
+
 
 # with st.chat_message("assistant"):
 #     st.write(full_response)
