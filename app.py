@@ -307,14 +307,11 @@ for agent in st.session_state.agents:
     #     "time": time.time(),
     #     "agent": type_agent
     # })
-    # order agents by time
+    # order agents by time 🤖
     st.session_state.agents.sort(key=lambda x: x['time'], reverse=True)
-    agent_story += f"{int((time.time() - agent['time']) / 60)} min ago\t{agent['agent'].replace('_', ' ').capitalize()}\n"
+    agent_story += f"{int((time.time() - agent['time']) / 60)} m ago\t{agent['agent'].replace('_', ' ').capitalize()}\n"
 
-
-# st.sidebar.write("🤖 " + agent['agent'].replace("_", " ") + f" - {int((time.time() - agent['time']) / 60)} min ago")
-
-st.sidebar.code(agent_story, language="markdown", line_numbers=False)
+st.sidebar.code(agent_story, language="MARKDOWN", line_numbers=False)
 
 
 # with st.chat_message("assistant"):
