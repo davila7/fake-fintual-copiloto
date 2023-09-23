@@ -1,18 +1,22 @@
+import os, time, requests, json
 import streamlit as st
-import time
-import requests
-import json
-import os
+import asyncio
+
 from PIL import Image
 from dotenv import load_dotenv
 load_dotenv()
-import asyncio
 from pydantic import BaseModel
 from typing import List
 import matplotlib.pyplot as plt
 from langchain.prompts import PromptTemplate
-import time
+
 from judini.codegpt.agent import Agent
+
+from typing import Any, List, Mapping, Optional
+from langchain.callbacks.manager import CallbackManagerForLLMRun
+
+from langchain.callbacks import StdOutCallbackHandler
+from langchain.callbacks.streamlit import LLMThoughtLabeler, StreamlitCallbackHandler
 
 #Judini
 CODEGPT_API_KEY= os.getenv("CODEGPT_API_KEY")
@@ -25,6 +29,24 @@ CODEGPT_AGENT_UNIFICADOR= os.getenv("CODEGPT_AGENT_UNIFICADOR")
 
 url = 'https://plus.codegpt.co/api/v1/agent/'
 
+# set_page_config() can only be called once per app page, and must be called as the first Streamlit command in your script.
+
+st.set_page_config(
+    page_title="Llama CodeGPT Agent",
+    page_icon="✨",
+    layout="wide",
+)
+
+st.image('fake-fintual-copiloto.png', width=50)
+st.title("Fake Fintual Copiloto 🤖")
+st.write("Preguntame cualquier cosa sobre los fondos de fintual... pero una advertencia ⚠️ Soy la versión Fake!")
+st.write('Creado por <a href="https://www.linkedin.com/in/daniel-avila-arias/">Daniel San</a> con <a href="https://codegpt.co/">CodeGPT</a>', unsafe_allow_html=True)
+st.divider()
+
+# Crear un sidebar
+st.sidebar.title("Agentes interactuando")
+
+
 if "agents" not in st.session_state:
     st.session_state["agents"] = []
 
@@ -35,9 +57,10 @@ if "password" not in st.session_state:
     st.session_state['password'] = ''
 
 headers = {
-    "Content-Type": "application/json; charset=utf-8", 
-    "Authorization": "Bearer "+CODEGPT_API_KEY
-    }
+    "Content-Type": "application/json; charset=utf-8",
+    "Authorization": f"Bearer {CODEGPT_API_KEY}"
+}
+
 
 def get_or_create_eventloop():
     try:
@@ -71,10 +94,7 @@ class ChoiceList(BaseModel):
 
 async def run_function_agent(agent_id, prompt):
     st.session_state.agents.append("🤖 agente_orquestador")
-    agent_instance = Agent(
-                api_key=CODEGPT_API_KEY, 
-                agent_id=agent_id
-                )
+    agent_instance = Agent(api_key=CODEGPT_API_KEY,agent_id=agent_id )
     full_response = ""
     async for response in agent_instance.chat_completion(prompt, stream=False):
         full_response += response
@@ -84,6 +104,11 @@ async def run_function_agent(agent_id, prompt):
     except json.JSONDecodeError:
         json_response = full_response
     return json_response
+
+
+# Initialize chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 async def run_rag_agent(type_agent):
 
@@ -103,19 +128,19 @@ async def run_rag_agent(type_agent):
         agent_id = CODEGPT_AGENT_RISKY_NORRIS
         role = 'user'
 
-    data = {
-            "messages": st.session_state.messages
-        }
-    st.session_state.messages.append({"role": role, "content": prompt})
+
     # st.write(data)
     # st.write(headers)
     # st.write(url+agent_id)
-    
-    st.session_state.agents.append("🤖 "+type_agent)
-    
+
+    # st.session_state.agents.append(f"🤖 {type_agent}")
+
+    data = { "messages": st.session_state.messages }
     response = requests.post(url+agent_id, headers=headers, json=data, stream=True)
+
     raw_data = ''
-    full_response = type_agent+': '
+    full_response=""
+
     for chunk in response.iter_content(chunk_size=1024):
         if chunk:
             raw_data = chunk.decode('utf-8').replace("data: ", '')
@@ -128,13 +153,12 @@ async def run_rag_agent(type_agent):
                             json_object = json.loads(line) 
                             result = json_object['data']
                             full_response += result
-                            time.sleep(0.05)
+                            # time.sleep(0.05)
                             # Add a blinking cursor to simulate typing
-                            message_placeholder.markdown(full_response + "▌")
+                            message_placeholder.write(full_response + "▌")
                         except json.JSONDecodeError:
                             print(f'Error al decodificar el objeto JSON en la línea: {line}')
-    message_placeholder.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+
     return full_response
 
 def api_fintual(fondo, from_date, to_date):
@@ -159,54 +183,48 @@ def api_fintual(fondo, from_date, to_date):
     # return an array
     return dates, prices
 
-st.set_page_config(layout="centered")  
 
-image = Image.open('fake-fintual-copiloto.png')
-st.image(image, width=50)
-st.title("Fake Fintual Copiloto 🤖")
-st.write("Preguntame cualquier cosa sobre los fondos de fintual... pero una advertencia ⚠️ Soy la versión Fake!")
-st.markdown('Creado por <a href="https://www.linkedin.com/in/daniel-avila-arias/">Daniel San</a> con <a href="https://codegpt.co/">CodeGPT</a>', unsafe_allow_html=True)
-st.markdown('---')
-
-# Crear un sidebar
-st.sidebar.title("Agentes interactuando")
-
-# Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = []
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        st.write(message["content"])
 
 
 if prompt := st.chat_input("En que te puedo ayudar?"):
+
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.write(prompt)
 
     array_response = []
     full_response = ""
 
     # Display assistant response in chat message container
+
     with st.chat_message("assistant"):
-        prompt_data_fintual = ''
-        message_placeholder = st.empty()
+        with st.status("Buscando al mejor agente para esta consulta...", expanded=True) as status:
+            prompt_data_fintual = ''
+            message_placeholder = st.empty()
 
-        is_function = False
+            is_function = False
 
-        with st.spinner('Buscando al mejor agente para esta consulta...'):
-            
-            
+            # with st.spinner('Buscando al mejor agente para esta consulta...'):
+
             response = asyncio.run(run_function_agent(CODEGPT_AGENT_ORQUESTADOR, prompt))
+
+            status.update(label="Agente seleccionado", state="running", expanded=True)
+
             if(response["function"] != False):
                 # ejecutar agent general
-                st.write(response["function"])
+                st.code(response["function"], language="json", line_numbers=True)
                 agent_name = response["function"]["name"]
+                title_agent_name=agent_name.replace("_", " ")
+                status.update(label=f"Ejecutando agente {title_agent_name}", state="running", expanded=True)
                 json_arguments = json.loads(response["function"]["arguments"])
                 sub_rag_string = "rag"
                 sub_api_string = "api"
-                
+
                 # function rag
                 if sub_rag_string in agent_name:
                     question = json_arguments["question"]
@@ -214,7 +232,7 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
                     prompt = asyncio.run(run_rag_agent(agent_name))
 
                 if sub_api_string in agent_name:
-                    st.write(sub_api_string in agent_name)
+                    st.code(sub_api_string in agent_name, language="json", line_numbers=True)
                     fondo_name = json_arguments["fondo_name"]
                     date_to = json_arguments["date_to"]
                     date_from = json_arguments["date_from"]
@@ -224,7 +242,7 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
                     # parar la ejecución del código por 5 segundos
                     with st.spinner('Datos obtenidos, ahora los graficaré...'):
                         time.sleep(5)
-                    
+
                     dates = date_price[0]
                     prices = date_price[1]
 
@@ -234,7 +252,7 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
                     plt.xlabel('Fecha')
                     plt.ylabel('Precio')
                     plt.title('Precio por Fecha')
-                    plt.xticks(rotation=90) 
+                    plt.xticks(rotation=90)
                     st.pyplot(plt)
 
                     prompt_data_fintual = PromptTemplate(
@@ -250,6 +268,19 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
                             ''',
                     )
                     prompt = prompt_data_fintual.format(prompt=prompt, fondo=fondo_name, dates=dates, prices=prices)
-        response_agent = asyncio.run(run_rag_agent('agente_general'))
+
+            response_agent = asyncio.run(run_rag_agent('agente_general'))
+            st.session_state.messages.append({"role": "assistant", "content": response_agent})
+
+            status.update(label="Respuesta obtenida", state="complete", expanded=True)
+
+        # # st.write(full_response)
+        # print(full_response)
+
+        # status.update(label="Download complete!", state="complete", expanded=False)
+
 for agent in st.session_state.agents:
     st.sidebar.write(agent)
+
+# with st.chat_message("assistant"):
+#     st.write(full_response)
