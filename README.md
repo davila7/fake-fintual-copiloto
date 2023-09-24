@@ -6,6 +6,12 @@ This repository contains code for the Fake Fintual Copiloto 2.0 agent. The agent
 
 ## Project Setup
 
+### CodeGPT Plus
+
+Create a free CodeGPT Plus account to start creating your agents: https://account.codegpt.co/auth/register
+
+### Packages
+
 Below are the main Python Packages used and their versions:
 
 - `judini==0.0.17`
