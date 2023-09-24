@@ -38,7 +38,7 @@ st.set_page_config(
 )
 
 st.image('fake-fintual-copiloto.png', width=50)
-st.title("Fake Fintual Copiloto 🤖")
+st.title("Fake Fintual Copiloto 2.0 🤖")
 st.write("Preguntame cualquier cosa sobre los fondos de fintual... pero una advertencia ⚠️ Soy la versión Fake!")
 st.write('Creado por <a href="https://www.linkedin.com/in/daniel-avila-arias/">Daniel San</a> con <a href="https://codegpt.co/">CodeGPT</a>', unsafe_allow_html=True)
 st.divider()
@@ -93,10 +93,13 @@ class ChoiceList(BaseModel):
     choices: List[Choice]
 
 async def run_function_agent(agent_id, prompt):
-    st.session_state.agents.append({
-        "time": time.time(),
-        "agent": "agente_orquestador"
-    })
+    st.session_state.agents.append(
+        {
+            "time": time.time(),
+            "agent": "agente_orquestador"
+        }
+    )
+
     agent_instance = Agent(api_key=CODEGPT_API_KEY,agent_id=agent_id )
     full_response = ""
     async for response in agent_instance.chat_completion(prompt, stream=False):
@@ -112,6 +115,43 @@ async def run_function_agent(agent_id, prompt):
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+async def run_agent_final(prompt):
+
+    agent_id = CODEGPT_AGENT_GENERAL
+    role = 'assistant'
+
+    # add agent to sidebar list
+    st.session_state.agents.append(
+        {
+            "time": time.time(),
+            "agent": "agent_final"
+        }
+    )
+    # st.write(st.session_state.messages)
+    data = { "messages": st.session_state.messages }
+    response = requests.post(url+agent_id, headers=headers, json=data, stream=True)
+
+    raw_data = ""
+    full_response = ""
+    for chunk in response.iter_content(chunk_size=1024):
+        if chunk:
+            raw_data = chunk.decode('utf-8').replace("data: ", '').strip()
+            if raw_data != "":
+                lines = raw_data.strip().splitlines()
+                for line in lines:
+                    line = line.strip()
+                    if line and line != "[DONE]":
+                        try:
+                            json_object = json.loads(line)
+                            result = json_object['data']
+                            full_response += result
+                            time.sleep(0.03)
+                            # Add a blinking cursor to simulate typing
+                            message_placeholder.write(f"{full_response} ▌")
+                        except json.JSONDecodeError:
+                            print(f'Error al decodificar el objeto JSON en la línea: {line}')
+    return full_response
 
 async def run_rag_agent(type_agent):
 
@@ -131,16 +171,7 @@ async def run_rag_agent(type_agent):
         agent_id = CODEGPT_AGENT_RISKY_NORRIS
         role = 'user'
 
-
-    # Cuando está activa, duplica la respuesta del bot
-    # st.session_state.messages.append({"role": role, "content": prompt})
-
-    # st.write(data)
-    # st.write(headers)
-    # st.write(url+agent_id)
-
     # add agent to sidebar list
-
     st.session_state.agents.append({
         "time": time.time(),
         "agent": type_agent
@@ -166,19 +197,17 @@ async def run_rag_agent(type_agent):
                             json_object = json.loads(line)
                             result = json_object['data']
                             full_response += result
-                            time.sleep(0.03)
-                            # Add a blinking cursor to simulate typing
-                            message_placeholder.write(f"{full_response} ▌")
                         except json.JSONDecodeError:
                             print(f'Error al decodificar el objeto JSON en la línea: {line}')
-            # add to the first space in full_response "hola"
-            # "**"+type_agent.replace("_", " ").capitalize()+"** dice: \r\r"
-            # full_response = "**"+type_agent.replace("_", " ").capitalize()+"** dice: \r\r"
-
-    return full_response
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 def api_fintual(fondo, from_date, to_date):
-    """ id, from_date, to_date """
+
+    st.session_state.agents.append({
+        "time": time.time(),
+        "agent": 'agente_api'
+    })
+
     id=15077
     if fondo == "Very Conservative Streep":
         id = 15077
@@ -236,7 +265,7 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
 
             if(response["function"] != False):
                 # ejecutar agent general
-                st.code(response["function"], language="json", line_numbers=True)
+                # st.code(response["function"], language="json", line_numbers=True)
                 agent_name = response["function"]["name"]
                 title_agent_name=agent_name.replace("_", " ")
                 status.update(label=f"Ejecutando agente {title_agent_name}", state="running", expanded=True)
@@ -248,10 +277,10 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
                 if sub_rag_string in agent_name:
                     question = json_arguments["question"]
                     # ejecutar rag agent
-                    prompt = asyncio.run(run_rag_agent(agent_name))
+                    asyncio.run(run_rag_agent(agent_name))
 
                 if sub_api_string in agent_name:
-                    st.code(sub_api_string in agent_name, language="json", line_numbers=True)
+                    # st.code(sub_api_string in agent_name, language="json", line_numbers=True)
                     fondo_name = json_arguments["fondo_name"]
                     date_to = json_arguments["date_to"]
                     date_from = json_arguments["date_from"]
@@ -287,35 +316,16 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
                             ''',
                     )
                     prompt = prompt_data_fintual.format(prompt=prompt, fondo=fondo_name, dates=dates, prices=prices)
+                    st.session_state.messages.append({"role": "assistant", "content": prompt})
             
             status.update(label="Preparando respuesta final", state="running", expanded=True)
-            response_agent = asyncio.run(run_rag_agent('agente_general'))
+            response_agent = asyncio.run(run_agent_final(prompt))
             status.update(label="Respuesta obtenida", state="complete", expanded=True)
-            
             st.session_state.messages.append({"role": "assistant", "content": response_agent})
 
-
-        # # st.write(full_response)
-        # print(full_response)
-
-        # status.update(label="Download complete!", state="complete", expanded=False)
-
 agent_story=""
-for agent in st.session_state.agents:
-    # # show hour of agent
-    # st.session_state.agents.append({
-    #     "time": time.time(),
-    #     "agent": type_agent
-    # })
-    # order agents by time
-    st.session_state.agents.sort(key=lambda x: x['time'], reverse=True)
+# recorro los logs y muestro las interacciones de cada agente
+for agent in sorted(st.session_state.agents, key=lambda x: x['time'], reverse=False):
     agent_story += f"{int((time.time() - agent['time']) / 60)} min ago\t{agent['agent'].replace('_', ' ').capitalize()}\n"
 
-
-# st.sidebar.write("🤖 " + agent['agent'].replace("_", " ") + f" - {int((time.time() - agent['time']) / 60)} min ago")
-
 st.sidebar.code(agent_story, language="markdown", line_numbers=False)
-
-
-# with st.chat_message("assistant"):
-#     st.write(full_response)

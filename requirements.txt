@@ -1,9 +1,9 @@
-streamlit==1.27.0 #  streamlit-1.24.1
+judini==0.0.17
+streamlit==1.27.0
 langchain==0.0.240
 requests
 python-dotenv
-llamaapi
 plotly
 matplotlib
-pandasai
-judini==0.0.17
+pydantic
+asyncio
