@@ -32,7 +32,7 @@ url = 'https://plus.codegpt.co/api/v1/agent/'
 # set_page_config() can only be called once per app page, and must be called as the first Streamlit command in your script.
 
 st.set_page_config(
-    page_title="Llama CodeGPT Agent",
+    page_title="CodeGPT Agents",
     page_icon="✨",
     layout="wide",
 )
@@ -262,14 +262,14 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
             response = asyncio.run(run_function_agent(CODEGPT_AGENT_ORQUESTADOR, prompt))
 
             status.update(label="Agente seleccionado", state="running", expanded=True)
-
-            if(response["function"] != False):
+            st.write(response)
+            if(response != ""):
                 # ejecutar agent general
                 # st.code(response["function"], language="json", line_numbers=True)
                 agent_name = response["function"]["name"]
                 title_agent_name=agent_name.replace("_", " ")
                 status.update(label=f"Ejecutando agente {title_agent_name}", state="running", expanded=True)
-                json_arguments = json.loads(response["function"]["arguments"])
+                json_arguments = response["function"]["argument"]
                 sub_rag_string = "rag"
                 sub_api_string = "api"
 
