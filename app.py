@@ -262,7 +262,7 @@ if prompt := st.chat_input("En que te puedo ayudar?"):
             response = asyncio.run(run_function_agent(CODEGPT_AGENT_ORQUESTADOR, prompt))
 
             status.update(label="Agente seleccionado", state="running", expanded=True)
-            st.write(response)
+            # st.write(response)
             if(response != ""):
                 # ejecutar agent general
                 # st.code(response["function"], language="json", line_numbers=True)
